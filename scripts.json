@@ -6,6 +6,7 @@
       "allow": ["env", "read", "write", "net", "run"],
       "unstable": true,
       "env": {
+        "PORT": "8002",
         "MEDIA_ROOT": "x:/",
         "STREAMING_ROOT": "http://192.168.0.78:8001/",
         "FLAG_FOLDER": "x:/flagged/",
@@ -19,6 +20,7 @@
       "allow": ["env", "read", "write", "net", "run"],
       "unstable": true,
       "env": {
+        "PORT": "8002",
         "MEDIA_ROOT": "x:/",
         "STREAMING_ROOT": "http://192.168.0.78:8001/",
         "FLAG_FOLDER": "x:/flagged/",

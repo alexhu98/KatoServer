@@ -1,5 +1,6 @@
 export interface MediaFolder {
   url: string,
+  name: string,
 }
 
 export interface MediaFile {

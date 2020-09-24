@@ -35,6 +35,7 @@ const getMoveFolder = () => {
 const buildMediaFolder = (name: string): MediaFolder => {
   return {
     url: getStreamingRoot() + encodeURIComponent(name),
+    name,
   }
 }
 
@@ -152,13 +153,15 @@ export const browseMediaFolder = async (ctx: Context) => {
   return ctx.string(`No such media folder: ${folderName}`, 404)
 }
 
-const parseMediaFileName = (url: string): string[] => {
+const parseMediaFileName = (url?: string): string[] => {
   let folder = ''
   let name = ''
-  const tokens = url.split('/')
-  if (tokens.length > 2) {
-    folder = decodeURIComponent(tokens[tokens.length - 2])
-    name = decodeURIComponent(tokens[tokens.length - 1])
+  if (url) {
+    const tokens = url.split('/')
+    if (tokens.length > 2) {
+      folder = decodeURIComponent(tokens[tokens.length - 2])
+      name = decodeURIComponent(tokens[tokens.length - 1])
+    }
   }
   return [folder, name]
 }

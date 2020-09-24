@@ -1,11 +1,15 @@
 import { assert, assertEquals, assertNotEquals, assertStringContains } from 'https://deno.land/std/testing/asserts.ts'
-import type { MediaFolder,MediaFile } from '../models.ts'
+import type { MediaFolder, MediaFile } from '../models.ts'
+
+const PORT = parseInt(Deno.env.get('PORT') || '8002')
+
+const getMediaApi = (path: string = ''): string => `http://localhost:${PORT}/api/media${path}`
 
 const waitForServerToStart = async () => {
   let retryCount = 0
   while (retryCount++ < 10) {
     try {
-      const response = await fetch('http://localhost:8000/browse')
+      const response = await fetch(getMediaApi())
       console.log(`waitForServerToStart -> ${response.status}`)
       await response.json()
       if (response.ok) {
@@ -20,18 +24,19 @@ const waitForServerToStart = async () => {
 
 Deno.test('browse', async () => {
   await waitForServerToStart()
-  const response = await fetch('http://localhost:8000/browse')
+  const response = await fetch(getMediaApi())
   const result = await response.json()
   assertNotEquals(result.length, 0)
   const folder: MediaFolder = result[0]
   console.log(folder)
   assertStringContains(folder.url, 'tstream')
+  assertEquals(folder.name, 'tstream')
   assert(folder.url.indexOf(' ') < 0, 'No space in url allowed')
 })
 
 Deno.test('browseMediaFolder', async () => {
   await waitForServerToStart()
-  const response = await fetch('http://localhost:8000/browse/tstream')
+  const response = await fetch(getMediaApi('/tstream'))
   const result = await response.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
@@ -42,16 +47,16 @@ Deno.test('browseMediaFolder', async () => {
   assertNotEquals(file.duration, 0)
   assert(file.url.indexOf(' ') < 0, 'No space in url allowed')
 })
-/*
+
 Deno.test('flagMediaFile', async () => {
   await waitForServerToStart()
-  const browseResponse = await fetch('http://localhost:8000/browse/tstream')
+  const browseResponse = await fetch(getMediaApi('/tstream'))
   const result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
   console.log(url)
-  const response = await fetch('http://localhost:8000/browse', {
+  const response = await fetch(getMediaApi(), {
     method: 'POST',
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
@@ -64,13 +69,13 @@ Deno.test('flagMediaFile', async () => {
 
 Deno.test('moveMediaFile', async () => {
   await waitForServerToStart()
-  const browseResponse = await fetch('http://localhost:8000/browse/tstream')
+  const browseResponse = await fetch(getMediaApi('/tstream'))
   const result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
   console.log(url)
-  const response = await fetch('http://localhost:8000/browse', {
+  const response = await fetch(getMediaApi(), {
     method: 'POST',
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
@@ -83,18 +88,18 @@ Deno.test('moveMediaFile', async () => {
 
 Deno.test('moveAllMediaFiles', async () => {
   await waitForServerToStart()
-  const browseResponse = await fetch('http://localhost:8000/browse/tstream')
+  const browseResponse = await fetch(getMediaApi('/tstream'))
   const result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
   console.log(url)
-  const response = await fetch('http://localhost:8000/browse', {
+  const response = await fetch(getMediaApi(), {
     method: 'POST',
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
     },
-    body: JSON.stringify({ action: 'MOVE_ALL', url }),
+    body: JSON.stringify({ action: 'MOVE_ALL' }),
   })
   console.log(`${response.status} ${await response.text()}`, )
   assert(response.ok, 'response.ok')
@@ -102,13 +107,13 @@ Deno.test('moveAllMediaFiles', async () => {
 
 Deno.test('deleteMediaFile', async () => {
   await waitForServerToStart()
-  const browseResponse = await fetch('http://localhost:8000/browse/tstream')
+  const browseResponse = await fetch(getMediaApi('/tstream'))
   const result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
   console.log(url)
-  const response = await fetch('http://localhost:8000/browse', {
+  const response = await fetch(getMediaApi(), {
     method: 'DELETE',
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
@@ -118,4 +123,3 @@ Deno.test('deleteMediaFile', async () => {
   console.log(`${response.status} ${await response.text()}`, )
   assert(response.ok, 'response.ok')
 })
-*/

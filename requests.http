@@ -1,16 +1,16 @@
-GET http://localhost:8000/browse
+GET http://localhost:8002/api/media
 
 ###
 
-GET http://localhost:8000/browse/tstream
+GET http://localhost:8002/api/media/tstream
 
 ###
 
-GET http://localhost:8000/browse/wstream
+GET http://localhost:8002/api/media/wstream
 
 ###
 
-DELETE http://localhost:8000/browse
+DELETE http://localhost:8002/api/media
 Content-Type: application/json
 
 {

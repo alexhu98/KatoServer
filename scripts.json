@@ -1,0 +1,36 @@
+{
+  "scripts": {
+    "start": {
+      "cmd": "deno run app.ts",
+      "desc": "run my app.ts file",
+      "allow": ["env", "read", "write", "net", "run"],
+      "unstable": true,
+      "env": {
+        "MEDIA_ROOT": "x:/",
+        "STREAMING_ROOT": "http://192.168.0.78:8001/",
+        "FLAG_FOLDER": "x:/flagged/",
+        "MOVE_FOLDER": "x:/moved/"
+      },
+      "watch": true
+    },
+    "test": {
+      "cmd": "deno test controllers",
+      "desc": "test my app.ts file",
+      "allow": ["env", "read", "write", "net", "run"],
+      "unstable": true,
+      "env": {
+        "MEDIA_ROOT": "x:/",
+        "STREAMING_ROOT": "http://192.168.0.78:8001/",
+        "FLAG_FOLDER": "x:/flagged/",
+        "MOVE_FOLDER": "x:/moved/"
+      },
+      "watch": true
+    }
+  },
+  "watcher": {
+    "interval": 350,
+    "exts": ["js", "ts", "json"],
+    "match": ["*.*", "controllers/*.*"],
+    "skip": ["*/.git/*"]
+  }
+}

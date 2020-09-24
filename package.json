@@ -1,0 +1,13 @@
+{
+  "name": "kato-server",
+  "version": "1.0.0",
+  "description": "Kato Server",
+  "main": "index.js",
+  "repository": "https://alexhu98@bitbucket.org/alexhu98/katoserver.git",
+  "author": "Alex Hu <alexhu98@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "ramda": "^0.27.1",
+    "tslint": "^6.1.3"
+  }
+}

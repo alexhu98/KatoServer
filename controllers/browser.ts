@@ -1,4 +1,6 @@
+import { exists } from 'https://deno.land/std/fs/mod.ts'
 import type { Context } from 'https://deno.land/x/abc/mod.ts'
+import LRU from 'https://deno.land/x/lru/mod.ts'
 import type { MediaFolder, MediaFile } from '../models.ts'
 import { R } from '../deps.ts'
 
@@ -13,22 +15,24 @@ const ACTION_MOVE = 'MOVE'
 const ACTION_MOVE_ALL = 'MOVE_ALL'
 const ACTION_DELETE = 'DELETE'
 
-const getMediaRoot = () => {
+const lru = new LRU(1000) // cache 1000 entries
+
+const getMediaRoot = (): string => {
   const folder = Deno.env.get('MEDIA_ROOT')
   return R.defaultTo(DEFAULT_MEDIA_ROOT, folder)
 }
 
-const getStreamingRoot = () => {
+const getStreamingRoot = (): string => {
   const folder = Deno.env.get('STREAMING_ROOT')
   return R.defaultTo(DEFAULT_STREAMING_ROOT, folder)
 }
 
-const getFlagFolder = () => {
+const getFlagFolder = (): string => {
   const folder = Deno.env.get('FLAG_FOLDER')
   return R.defaultTo(DEFAULT_FLAG_FOLDER, folder)
 }
 
-const getMoveFolder = () => {
+const getMoveFolder = (): string => {
   const folder = Deno.env.get('MOVE_FOLDER')
   return R.defaultTo(DEFAULT_MOVE_FOLDER, folder)
 }
@@ -78,8 +82,14 @@ const parseDuration = (lines: string[]): number => {
   return duration
 }
 
+
+
 // TODO: cache the result
-const getDuration = async (path: string): Promise<number> => {
+const getDuration = async (path: string, stat: Deno.FileInfo): Promise<number> => {
+  const cacheKey = `${path} | ${stat.size} | ${stat.mtime}`
+  if (lru.has(cacheKey)) {
+    return lru.get(cacheKey) as number
+  }
   let duration = 0
   // console.log(`getDuration ${path}`)
   // const command = `D:/GoogleDrive/Workspace/AutoRecode/exe/ffprobe.exe -hide_banner -v quiet -show_streams -print_format -flat "${path}"`
@@ -104,6 +114,9 @@ const getDuration = async (path: string): Promise<number> => {
     duration = parseDuration(text.split('\n'))
   }
   process.close()
+  if (duration !== 0) {
+    lru.set(cacheKey, duration)
+  }
   return duration
 }
 
@@ -116,42 +129,58 @@ const mediaFolders: MediaFolder[] = [
   buildMediaFolder('zstream'),
 ]
 
+export const prepareBrowser = async () => {
+  console.log(`prepareBrowser -> starting`)
+  const promises = R.map(async (mediaFolder: MediaFolder) => {
+    await getMediaFiles(mediaFolder.name)
+  }, mediaFolders)
+  await Promise.all(promises)
+  console.log(`prepareBrowser -> prepared`)
+}
+
 export const browse = (ctx: Context) => {
   ctx.json(mediaFolders, 200)
 }
 
 export const browseMediaFolder = async (ctx: Context) => {
-  const mediaFiles: MediaFile[] = []
   const { name: folderName } = ctx.params
   try {
-    const folder = getMediaRoot() + folderName
-    // console.log(`browseMediaFolder -> folder`, folder)
-    for await (const directory of Deno.readDir(folder)) {
-      const { isFile, name } = directory
-      // console.log(`forawait -> directory`, directory)
-      if (isFile) {
-        if (name.endsWith('.mp4') || name.endsWith('.m4')) {
-          const path = folder + '/' + name
-          const stat = await Deno.lstat(path)
-          // console.log(`browseMediaFolder -> stat`, stat)
-          if (stat.mtime != null) {
-            const mediaFile = {
-              url: getStreamingRoot() + encodeURIComponent(folderName) + '/' + encodeURIComponent(name),
-              fileSize: stat.size,
-              lastModified: stat.mtime.getTime(),
-              duration: await getDuration(path),
-            }
-            mediaFiles.push(mediaFile)
-          }
-        }
-      }
-    }
+    const mediaFiles = await getMediaFiles(folderName)
     return ctx.json(mediaFiles, 200)
   }
   catch (ex) {
     console.error(ex)
   }
   return ctx.string(`No such media folder: ${folderName}`, 404)
+}
+
+const getMediaFiles = async (folderName: string): Promise<MediaFile[]> => {
+  const mediaFiles: MediaFile[] = []
+  const folder = getMediaRoot() + folderName
+  const folderExists = await exists(folder)
+  if (folderExists) {
+    console.log(`getMediaFiles -> folder`, folder)
+    for await (const directory of Deno.readDir(folder)) {
+      const { isFile, name } = directory
+      if (isFile) {
+        if (name.endsWith('.mp4') || name.endsWith('.m4')) {
+          const path = folder + '/' + name
+          const stat = await Deno.lstat(path)
+          if (stat.mtime != null) {
+            const mediaFile = {
+              url: getStreamingRoot() + encodeURIComponent(folderName) + '/' + encodeURIComponent(name),
+              fileSize: stat.size,
+              lastModified: stat.mtime.getTime(),
+              duration: await getDuration(path, stat),
+            }
+            mediaFiles.push(mediaFile)
+            // console.log(`getMediaFiles -> mediaFile`, mediaFile)
+          }
+        }
+      }
+    }
+  }
+  return mediaFiles
 }
 
 const parseMediaFileName = (url?: string): string[] => {
@@ -167,16 +196,46 @@ const parseMediaFileName = (url?: string): string[] => {
   return [folder, name]
 }
 
-const flagFile = async (path: string): Promise<void> => {
-  console.log(`flagFile -> path =`, path)
-  const [, name] = parseMediaFileName(path)
-  await Deno.rename(path, getFlagFolder() + name)
+const deleteFile = async (url: string): Promise<void> => {
+  const [folder, name] = parseMediaFileName(url)
+  if (!R.isEmpty(folder) && !R.isEmpty(name)) {
+    const path = getMediaRoot() + folder + '/' + name
+    console.log(`deleteFile -> path =`, path)
+    try {
+      await Deno.remove(path)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  }
 }
 
-const moveFile = async (path: string): Promise<void> => {
-  console.log(`moveFile -> path =`, path)
-  const [, name] = parseMediaFileName(path)
-  await Deno.rename(path, getMoveFolder() + name)
+const flagFile = async (url: string): Promise<void> => {
+  const [folder, name] = parseMediaFileName(url)
+  if (!R.isEmpty(folder) && !R.isEmpty(name)) {
+    const path = getMediaRoot() + folder + '/' + name
+    console.log(`flagFile ->`, path)
+    try {
+      await Deno.rename(path, getFlagFolder() + name)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  }
+}
+
+const moveFile = async (url: string): Promise<void> => {
+  const [folder, name] = parseMediaFileName(url)
+  if (!R.isEmpty(folder) && !R.isEmpty(name)) {
+    const path = getMediaRoot() + folder + '/' + name
+    console.log(`moveFile ->`, path)
+    try {
+      await Deno.rename(path, getMoveFolder() + name)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  }
 }
 
 const moveAllFiles = async (): Promise<void> => {
@@ -190,38 +249,31 @@ const moveAllFiles = async (): Promise<void> => {
   process.close()
 }
 
-const deleteFile = async (path: string): Promise<void> => {
-  console.log(`deleteFile -> path =`, path)
-  await Deno.remove(path)
-}
-
 export const postMediaFile = async (ctx: Context) => {
   const body: any = await ctx.body
   const { action, list } = body
   try {
-    console.log(`postMediaFile -> action, list`, action, list)
+    console.log(`postMediaFile ->`, action, list)
     const promises = R.map(async (url: string) => {
-      const [folder, name] = parseMediaFileName(url)
-      const path = getMediaRoot() + folder + '/' + name
       switch (action) {
-        case ACTION_FLAG:
-          await flagFile(path)
+        case ACTION_DELETE:
+          await deleteFile(url)
+          break
+
+          case ACTION_FLAG:
+          await flagFile(url)
           break
 
         case ACTION_MOVE:
-          await moveFile(path)
+          await moveFile(url)
           break
 
         case ACTION_MOVE_ALL:
           await moveAllFiles()
           break
-
-        case ACTION_DELETE:
-          await deleteFile(path)
-          break
       }
       return `${action} ${url}`
-    }, R.defaultTo([''], list))
+    }, R.defaultTo([''], action === ACTION_MOVE_ALL ? undefined : list))
     const messages = await Promise.all(promises)
     const message = messages.join('\n')
     console.log(`postMediaFile -> message =`, message)

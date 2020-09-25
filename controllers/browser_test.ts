@@ -17,7 +17,7 @@ const waitForServerToStart = async () => {
       }
     }
     catch (ex) {
-      console.error(ex)
+      // console.error(ex)
     }
   }
 }
@@ -48,6 +48,49 @@ Deno.test('browseMediaFolder', async () => {
   assert(file.url.indexOf(' ') < 0, 'No space in url allowed')
 })
 
+Deno.test('browseMediaFolder_wrong_url', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi('/wrong_url'))
+  const result = await response.json()
+  assertEquals(result.length, 0)
+})
+
+Deno.test('deleteMediaFile', async () => {
+  await waitForServerToStart()
+  const browseResponse = await fetch(getMediaApi('/tstream'))
+  let result = await browseResponse.json()
+  assertNotEquals(result.length, 0)
+  const file: MediaFile = result[0]
+  const url = file.url
+  console.log(url)
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'DELETE', list: [url] }),
+  })
+  result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
+Deno.test('deleteMediaFile_wrong_url', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'DELETE', list: ['wrong_url'] }),
+  })
+  const result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
 Deno.test('flagMediaFile', async () => {
   await waitForServerToStart()
   const browseResponse = await fetch(getMediaApi('/tstream'))
@@ -64,6 +107,21 @@ Deno.test('flagMediaFile', async () => {
     body: JSON.stringify({ action: 'FLAG', list: [url] }),
   })
   result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
+Deno.test('flagMediaFile_wrong_url', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'FLAG', list: ['wrong_url'] }),
+  })
+  const result = await response.json()
   console.log(`${response.status} ${result.success} ${result.message}`)
   assert(response.ok, 'response.ok')
   assert(result.success, 'result.success')
@@ -90,6 +148,66 @@ Deno.test('moveMediaFile', async () => {
   assert(result.success, 'result.success')
 })
 
+Deno.test('moveMediaFile_wrong_url', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'MOVE', list: ['wrong_url'] }),
+  })
+  const result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
+Deno.test('moveMediaFile_empty_url', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'MOVE', list: [''] }),
+  })
+  const result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
+Deno.test('moveMediaFile_empty_list', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'MOVE', list: [''] }),
+  })
+  const result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
+Deno.test('moveMediaFile_no_list', async () => {
+  await waitForServerToStart()
+  const response = await fetch(getMediaApi(), {
+    method: 'POST',
+    headers: {
+      'Content-type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ action: 'MOVE' }),
+  })
+  const result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
+  assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
+})
+
 Deno.test('moveAllMediaFiles', async () => {
   await waitForServerToStart()
   const browseResponse = await fetch(getMediaApi('/tstream'))
@@ -104,27 +222,6 @@ Deno.test('moveAllMediaFiles', async () => {
       'Content-type': 'application/json; charset=UTF-8',
     },
     body: JSON.stringify({ action: 'MOVE_ALL' }),
-  })
-  result = await response.json()
-  console.log(`${response.status} ${result.success} ${result.message}`)
-  assert(response.ok, 'response.ok')
-  assert(result.success, 'result.success')
-})
-
-Deno.test('deleteMediaFile', async () => {
-  await waitForServerToStart()
-  const browseResponse = await fetch(getMediaApi('/tstream'))
-  let result = await browseResponse.json()
-  assertNotEquals(result.length, 0)
-  const file: MediaFile = result[0]
-  const url = file.url
-  console.log(url)
-  const response = await fetch(getMediaApi(), {
-    method: 'POST',
-    headers: {
-      'Content-type': 'application/json; charset=UTF-8',
-    },
-    body: JSON.stringify({ action: 'DELETE', list: [url] }),
   })
   result = await response.json()
   console.log(`${response.status} ${result.success} ${result.message}`)

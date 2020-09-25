@@ -10,6 +10,16 @@ GET http://localhost:8002/api/media/wstream
 
 ###
 
+POST http://localhost:8002/api/media
+Content-Type: application/json
+
+{
+  "action": "MOVE_ALL",
+  "url": "http://192.168.0.78:8001/tstream/A1%20FHF%20200701.m4"
+}
+
+###
+
 DELETE http://localhost:8002/api/media
 Content-Type: application/json
 

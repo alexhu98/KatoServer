@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertNotEquals, assertStringContains } from 'https://deno.land/std/testing/asserts.ts'
 import type { MediaFolder, MediaFile } from '../models.ts'
 
-const PORT = parseInt(Deno.env.get('PORT') || '8002')
+const PORT = parseInt(Deno.env.get('PORT') || '8002', 10)
 
 const getMediaApi = (path: string = ''): string => `http://localhost:${PORT}/api/media${path}`
 
@@ -51,7 +51,7 @@ Deno.test('browseMediaFolder', async () => {
 Deno.test('flagMediaFile', async () => {
   await waitForServerToStart()
   const browseResponse = await fetch(getMediaApi('/tstream'))
-  const result = await browseResponse.json()
+  let result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
@@ -61,16 +61,18 @@ Deno.test('flagMediaFile', async () => {
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
     },
-    body: JSON.stringify({ action: 'FLAG', url }),
+    body: JSON.stringify({ action: 'FLAG', list: [url] }),
   })
-  console.log(`${response.status} ${await response.text()}`, )
+  result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
   assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
 })
 
 Deno.test('moveMediaFile', async () => {
   await waitForServerToStart()
   const browseResponse = await fetch(getMediaApi('/tstream'))
-  const result = await browseResponse.json()
+  let result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
@@ -80,16 +82,18 @@ Deno.test('moveMediaFile', async () => {
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
     },
-    body: JSON.stringify({ action: 'MOVE', url }),
+    body: JSON.stringify({ action: 'MOVE', list: [url] }),
   })
-  console.log(`${response.status} ${await response.text()}`, )
+  result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
   assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
 })
 
 Deno.test('moveAllMediaFiles', async () => {
   await waitForServerToStart()
   const browseResponse = await fetch(getMediaApi('/tstream'))
-  const result = await browseResponse.json()
+  let result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
@@ -101,25 +105,29 @@ Deno.test('moveAllMediaFiles', async () => {
     },
     body: JSON.stringify({ action: 'MOVE_ALL' }),
   })
-  console.log(`${response.status} ${await response.text()}`, )
+  result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
   assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
 })
 
 Deno.test('deleteMediaFile', async () => {
   await waitForServerToStart()
   const browseResponse = await fetch(getMediaApi('/tstream'))
-  const result = await browseResponse.json()
+  let result = await browseResponse.json()
   assertNotEquals(result.length, 0)
   const file: MediaFile = result[0]
   const url = file.url
   console.log(url)
   const response = await fetch(getMediaApi(), {
-    method: 'DELETE',
+    method: 'POST',
     headers: {
       'Content-type': 'application/json; charset=UTF-8',
     },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ action: 'DELETE', list: [url] }),
   })
-  console.log(`${response.status} ${await response.text()}`, )
+  result = await response.json()
+  console.log(`${response.status} ${result.success} ${result.message}`)
   assert(response.ok, 'response.ok')
+  assert(result.success, 'result.success')
 })

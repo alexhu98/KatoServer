@@ -11,6 +11,7 @@ const MOVE_ALL_COMMAND = 'x:/ystream/_move_to_all.bat'
 const ACTION_FLAG = 'FLAG'
 const ACTION_MOVE = 'MOVE'
 const ACTION_MOVE_ALL = 'MOVE_ALL'
+const ACTION_DELETE = 'DELETE'
 
 const getMediaRoot = () => {
   const folder = Deno.env.get('MEDIA_ROOT')
@@ -58,16 +59,16 @@ const parseDuration = (lines: string[]): number => {
         let minutes = 0
         let seconds = 0
         if (tokens.length === 3) {
-          hours = parseInt(tokens[0])
-          minutes = parseInt(tokens[1])
-          seconds = parseInt(tokens[2])
+          hours = parseInt(tokens[0], 10)
+          minutes = parseInt(tokens[1], 10)
+          seconds = parseInt(tokens[2], 10)
         }
         else if (tokens.length === 2) {
-          minutes = parseInt(tokens[0])
-          seconds = parseInt(tokens[1])
+          minutes = parseInt(tokens[0], 10)
+          seconds = parseInt(tokens[1], 10)
         }
         else if (tokens.length === 1) {
-          seconds = parseInt(tokens[0])
+          seconds = parseInt(tokens[0], 10)
         }
         duration = hours * 3600 + minutes * 60 + seconds
       }
@@ -184,48 +185,56 @@ const moveAllFiles = async (): Promise<void> => {
   const process = Deno.run({
     cmd: [command]
   })
-  const result = await process.status()
-  console.log(`moveAllFiles -> result`, result)
+  const status = await process.status()
+  console.log(`moveAllFiles -> process.status()`, status)
   process.close()
+}
+
+const deleteFile = async (path: string): Promise<void> => {
+  console.log(`deleteFile -> path =`, path)
+  await Deno.remove(path)
 }
 
 export const postMediaFile = async (ctx: Context) => {
   const body: any = await ctx.body
-  const { action, url } = body
-  const [folder, name] = parseMediaFileName(url)
-  const path = getMediaRoot() + folder + '/' + name
+  const { action, list } = body
   try {
-    switch (action) {
-      case ACTION_FLAG:
-        await flagFile(path)
-        break
+    console.log(`postMediaFile -> action, list`, action, list)
+    const promises = R.map(async (url: string) => {
+      const [folder, name] = parseMediaFileName(url)
+      const path = getMediaRoot() + folder + '/' + name
+      switch (action) {
+        case ACTION_FLAG:
+          await flagFile(path)
+          break
 
-      case ACTION_MOVE:
-        await moveFile(path)
-        break
+        case ACTION_MOVE:
+          await moveFile(path)
+          break
 
-      case ACTION_MOVE_ALL:
-        await moveAllFiles()
-        break
-    }
-    return ctx.string(`${action} ${url}`, 200)
+        case ACTION_MOVE_ALL:
+          await moveAllFiles()
+          break
+
+        case ACTION_DELETE:
+          await deleteFile(path)
+          break
+      }
+      return `${action} ${url}`
+    }, R.defaultTo([''], list))
+    const messages = await Promise.all(promises)
+    const message = messages.join('\n')
+    console.log(`postMediaFile -> message =`, message)
+    return ctx.json({
+      success: true,
+      message,
+    }, 200)
   }
   catch (ex) {
     console.error(`postMediaFile ->`, ex)
   }
-  return ctx.string(`No such media file: ${url}`, 404)
-}
-
-export const deleteMediaFile = async (ctx: Context) => {
-  const body: any = await ctx.body
-  const { url } = body
-  const [folder, name] = parseMediaFileName(url)
-  const path = getMediaRoot() + folder + '/' + name
-  try {
-    await Deno.remove(path)
-    return ctx.string(`DELETE ${url}`, 200)
-  }
-  catch (ex) {
-  }
-  return ctx.string(`No such media file: ${url}`, 404)
+  return ctx.json({
+    success: false,
+    message: `${action} ${list}`,
+  }, 404)
 }

@@ -159,7 +159,6 @@ const getMediaFiles = async (folderName: string): Promise<MediaFile[]> => {
   const folder = getMediaRoot() + folderName
   const folderExists = await exists(folder)
   if (folderExists) {
-    console.log(`getMediaFiles -> folder`, folder)
     for await (const directory of Deno.readDir(folder)) {
       const { isFile, name } = directory
       if (isFile) {
@@ -179,6 +178,7 @@ const getMediaFiles = async (folderName: string): Promise<MediaFile[]> => {
         }
       }
     }
+    console.log(`getMediaFiles -> ${folder} (${mediaFiles.length})`)
   }
   return mediaFiles
 }
